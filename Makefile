@@ -3,4 +3,3 @@ CFLAGS=-Wall -Wextra
 
 sample: sample.c
 	$(CC) $(CFLAGS) -I./ -o $@ $<
-
