@@ -13,6 +13,7 @@
 #define Layout_make UI_Layout_make 
 #define Layout_available_pos UI_Layout_available_pos 
 #define Layout_push_widget UI_Layout_push_widget 
+#define LAYOUTS_CAP UI_LAYOUTS_CAP
 #define Context UI_Context 
 #define Context_make UI_Context_make 
 #endif
@@ -54,13 +55,15 @@ void      UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
 
 typedef struct {
 	UI_Vector2f pos;
-#define LAYOUTS_CAP 1024
+#define UI_LAYOUTS_CAP 1024
 	UI_Layout layouts[LAYOUTS_CAP];
 	size_t    layouts_count;
 } UI_Context;
 
 // Methods of UI_Context
 UI_Context UI_Context_make();
+void       UI_begin(UI_Context* ctx, UI_Layout_kind kind);
+void       UI_Context_push_layout(UI_Context* ctx, UI_Layout layout);
 
 #endif
 
@@ -116,6 +119,22 @@ UI_Context UI_Context_make() {
 	ctx.layouts_count = 0;
 
 	return ctx;
+}
+
+void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
+	UI_Layout layout = {0};
+	layout.pos = (UI_Vector2f) {
+		.x = ctx->pos.x,
+		.y = ctx->pos.y
+	};
+	layout.kind = kind;
+	UI_Context_push_layout(ctx, layout);
+}
+
+void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {
+	UI_ASSERT(ctx->layouts_count + 1 < UI_LAYOUTS_CAP, "Layouts exhausted! Please increase the UI_LAYOUTS_CAP!");
+
+	ctx->layouts[ctx->layouts_count++] = layout;
 }
 
 #endif
