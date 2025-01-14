@@ -2,6 +2,8 @@
 #define UI_H_
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 
 // Remove Prefix
@@ -16,6 +18,8 @@
 #define LAYOUTS_CAP UI_LAYOUTS_CAP
 #define Context UI_Context 
 #define Context_make UI_Context_make 
+#define Context_free UI_Context_free
+#define Context_push_layout UI_Context_push_layout
 #endif
 
 /*
@@ -30,10 +34,25 @@
 		}\
 	} while (0)
 
+// Logging
+#define UI_log_error(fmt, ...) do {\
+		fprintf(stderr, "%s"fmt"\n", "[ERROR] ", ##__VA_ARGS__);\
+	} while (0)
+#define UI_log_info(fmt, ...) do {\
+		fprintf(stdout, "%s"fmt"\n", "[INFO] ", ##__VA_ARGS__);\
+	} while (0)
+#define UI_log_warning(fmt, ...) do {\
+		fprintf(stdout, "%s"fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
+	} while (0)
+
 // Struct: UI_Vector2f
 typedef struct {
 	float x, y;
 } UI_Vector2f;
+
+typedef struct {
+	uint8_t r, g, b, a;
+} UI_Color;
 
 // Enum: UI_Layout_kind
 typedef enum {
@@ -58,12 +77,17 @@ typedef struct {
 #define UI_LAYOUTS_CAP 1024
 	UI_Layout layouts[LAYOUTS_CAP];
 	size_t    layouts_count;
+	int active_id;
+	int last_used_id;
 } UI_Context;
 
 // Methods of UI_Context
 UI_Context UI_Context_make();
 void       UI_begin(UI_Context* ctx, UI_Layout_kind kind);
+bool       UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color);
 void       UI_Context_push_layout(UI_Context* ctx, UI_Layout layout);
+UI_Layout *UI_Context_top_layout(UI_Context* ctx);
+void       UI_Context_free(UI_Context* ctx);
 
 #endif
 
@@ -131,10 +155,28 @@ void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
 	UI_Context_push_layout(ctx, layout);
 }
 
+bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color) {
+	int id = ctx->last_used_id++;
+	UI_Layout *top = UI_Context_top_layout(ctx);
+	if (top == NULL) {
+		UI_log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
+}
+
 void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {
 	UI_ASSERT(ctx->layouts_count + 1 < UI_LAYOUTS_CAP, "Layouts exhausted! Please increase the UI_LAYOUTS_CAP!");
 
 	ctx->layouts[ctx->layouts_count++] = layout;
+}
+
+UI_Layout *UI_Context_top_layout(UI_Context* ctx) {
+	if (ctx->layouts_count <= 0) return NULL;
+	return &ctx->layouts[ctx->layouts_count-1];
+}
+
+void UI_Context_free(UI_Context* ctx) {
+
 }
 
 #endif
