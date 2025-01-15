@@ -1,14 +1,30 @@
 #define UI_IMPLEMENTATION
 #define UI_REMOVE_PREFIX
 #include <ui.h>
+#include <raylib.h>
 
+#define WIDTH 800
+#define HEIGHT 600
 int main(void) {
 	UI_Context ctx = UI_Context_make();
+	
+	InitWindow(WIDTH, HEIGHT, "Raylib UI sample");
 
-	UI_log_error("This is what an error looks like %d, %c", 10, 'A');
-	UI_log_info("This is what an info looks like %d, %f", 56, 1.04554);
-	size_t u = 65535;
-	UI_log_warning("This is what an warning looks like %p, %zu", &ctx, u);
+	while (!WindowShouldClose()) {
+		BeginDrawing();
+
+		UI_begin(&ctx, UI_LAYOUT_KIND_VERT);
+		
+		if (UI_button(&ctx, "Click me!", 18, UI_COLOR_WHITE)) {
+			printf("Button Clicked!\n");
+		}
+
+		UI_end(&ctx);
+
+		EndDrawing();
+	}
+
+	CloseWindow();
 
 	UI_Context_free(&ctx);
 	return 0;
