@@ -33,7 +33,7 @@
 
 // Macro for calling callbacks
 #define UI_CALL(func, ...) ({\
-                UI_ASSERT(func != NULL, "Trying to call a NULL pointed function!");\
+                UI_ASSERT(func != NULL, "Trying to call '"#func"', that points to NULL!");\
                 func(__VA_ARGS__);\
         })
 // NOTE: Copy-pasted from raylib.h
@@ -67,6 +67,14 @@ typedef struct {
 	float x, y;
 } UI_Vector2f;
 
+// Struct: UI_Rect
+typedef struct {
+	float x, y, width, height;
+} UI_Rect;
+
+// Methods of UI_Rect
+bool UI_Rect_has_point(UI_Rect *rect, UI_Vector2f point);
+
 typedef struct {
 	uint8_t r, g, b, a;
 } UI_Color;
@@ -80,6 +88,14 @@ typedef struct {
 
 // Typedef: UI_Font
 typedef void* UI_Font;
+
+// Enum: UI_Mouse_button
+typedef enum {
+	UI_MOUSE_BUTTON_LEFT,
+	UI_MOUSE_BUTTON_MIDDLE,
+	UI_MOUSE_BUTTON_RIGHT,
+	UI_MOUSE_BUTTON_COUNT,
+} UI_Mouse_button;
 
 // Enum: UI_Layout_kind
 typedef enum {
@@ -95,9 +111,9 @@ typedef struct {
 } UI_Layout;
 
 // Methods of UI_Layout
-UI_Layout UI_Layout_make(UI_Layout_kind kind);
-UI_Vector2f  UI_Layout_available_pos(UI_Layout* layout);
-void      UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
+UI_Layout   UI_Layout_make(UI_Layout_kind kind);
+UI_Vector2f UI_Layout_available_pos(UI_Layout* layout);
+void        UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
 
 typedef struct {
 	UI_Vector2f pos;
@@ -119,14 +135,26 @@ UI_Layout  UI_Context_pop_layout(UI_Context* ctx);
 UI_Layout *UI_Context_top_layout(UI_Context* ctx);
 void       UI_Context_free(UI_Context* ctx);
 
+#define DECLARE_CALLBACK(func_name, ret_type, ...) typedef ret_type(*UI_##func_name##_func)(__VA_ARGS__);\
+	void UI_set_##func_name(UI_##func_name##_func callback);\
+	UI_##func_name##_func UI_##func_name
+#define DEFINE_CALLBACK(func_name) void UI_set_##func_name(UI_##func_name##_func callback) { UI_##func_name = callback; }
+
 // Graphics plugin callbacks
-typedef UI_Vector2f(UI_Measure_text_func)(UI_Font*, const char*, int);
-void UI_set_Measure_text_callback(UI_Measure_text_func);
-UI_Measure_text_func UI_Measure_text;
+DECLARE_CALLBACK(measure_text, UI_Vector2f, UI_Font*, const char*, int);
+DECLARE_CALLBACK(get_mpos, UI_Vector2f, void*);
+DECLARE_CALLBACK(mouse_button_released, bool, UI_Mouse_button);
 
 #endif
 //////////////////////////////////////////////////
 #ifdef UI_IMPLEMENTATION
+
+// Methods of UI_Rect
+bool UI_Rect_has_point(UI_Rect *rect, UI_Vector2f point) {
+	UI_Rect r = *rect;
+	return (point.x >= r.x && point.x <= r.x + r.width &&
+	    point.y >= r.y && point.y <= r.y + r.height);
+}
 
 // Methods of UI_Layout
 UI_Layout UI_Layout_make(UI_Layout_kind kind) {
@@ -171,10 +199,11 @@ void UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size) {
 }
 
 // Methods of UI_Context
-UI_Context UI_Context_make() {
+UI_Context UI_Context_make(UI_Font *font) {
 	UI_Context ctx = {0};
 	ctx.active_id = -1;
 	ctx.layouts_count = 0;
+	ctx.font = font;
 
 	return ctx;
 }
@@ -195,7 +224,8 @@ void UI_end(UI_Context* ctx) {
 }
 
 bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color) {
-	int id = ctx->last_used_id++; UI_Layout *top = UI_Context_top_layout(ctx);
+	int id = ctx->last_used_id++; 
+	UI_Layout *top = UI_Context_top_layout(ctx);
 	if (top == NULL) {
 		UI_log_error("This function must be used between 'begin' and 'end'!");
 		return false;
@@ -203,7 +233,26 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 
 	const UI_Vector2f pos  = UI_Layout_available_pos(top);
 	UI_Vector2f size;
-	size = UI_CALL(UI_Measure_text, ctx->font, text, font_size);
+	size = UI_CALL(UI_measure_text, ctx->font, text, font_size);
+
+	const UI_Rect rect = {
+		.x = pos.x,
+		.y = pos.y,
+		.width = size.x,
+		.height = size.y,
+	};
+
+	// TODO: Maybe just pass a mpos ptr to the ctx?
+	bool click = false;
+	UI_Vector2f mpos;
+	mpos = UI_CALL(UI_get_mpos, NULL);
+
+	bool hovering = UI_Rect_has_point(&rect, mpos);
+
+	if (ctx->active_id == id) {
+	}
+
+	return click;
 }
 
 void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {
@@ -225,5 +274,9 @@ UI_Layout *UI_Context_top_layout(UI_Context* ctx) {
 void UI_Context_free(UI_Context* ctx) {
 
 }
+
+// Graphics plugin callbacks
+DEFINE_CALLBACK(measure_text);
+DEFINE_CALLBACK(get_mpos);
 
 #endif
