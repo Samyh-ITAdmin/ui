@@ -141,6 +141,7 @@ UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos);
 void       UI_begin(UI_Context* ctx, UI_Layout_kind kind);
 void       UI_end(UI_Context* ctx);
 bool       UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color);
+void       UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color);
 void       UI_Context_push_layout(UI_Context* ctx, UI_Layout layout);
 UI_Layout  UI_Context_pop_layout(UI_Context* ctx);
 UI_Layout *UI_Context_top_layout(UI_Context* ctx);
@@ -245,17 +246,17 @@ void UI_end(UI_Context* ctx) {
 	UI_Context_pop_layout(ctx);
 }
 
-
 // NOTE: local helper
 static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size) {
+    (void)ctx;
 	switch (layout->kind) {
 		case UI_LAYOUT_KIND_HORZ: {
-			/*ctx->ui_rect.width += size.x;*/
-			/*ctx->ui_rect.height = fmaxf(ctx->ui_rect.height, size.y);*/
+			// ctx->ui_rect.width += size.x;
+			// ctx->ui_rect.height = fmaxf(ctx->ui_rect.height, size.y);
 		} break;
 		case UI_LAYOUT_KIND_VERT: {
-			/*ctx->ui_rect.width = fmaxf(ctx->ui_rect.width, size.x);*/
-			/*ctx->ui_rect.height += size.y;*/
+			// ctx->ui_rect.width = fmaxf(ctx->ui_rect.width, size.x);
+			// ctx->ui_rect.height += size.y;
 		} break;
 		case UI_LAYOUT_KIND_COUNT:
 		default: UI_ASSERT(0, "Unreachable");
@@ -339,6 +340,16 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 	return click;
 }
 
+void (UI_Context *ctx, const char *text, int font_size, UI_Color color) {
+	int id = ctx->last_used_id++;
+	UI_Layout *top = UI_Context_top_layout(ctx);
+	if (top == NULL) {
+		UI_log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
+
+}
+
 void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {
 	UI_ASSERT(ctx->layouts_count + 1 < UI_LAYOUTS_CAP, "Layouts exhausted! Please increase the UI_LAYOUTS_CAP!");
 
@@ -356,7 +367,7 @@ UI_Layout *UI_Context_top_layout(UI_Context* ctx) {
 }
 
 void UI_Context_free(UI_Context* ctx) {
-
+    (void)ctx;
 }
 
 // Graphics plugin callbacks
