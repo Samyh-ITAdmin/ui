@@ -23,6 +23,9 @@
 #define Context_make UI_Context_make
 #define Context_free UI_Context_free
 #define Context_push_layout UI_Context_push_layout
+#define log_info UI_log_info
+#define log_error UI_log_error
+#define log_warning UI_log_warning
 #endif
 
 /*
@@ -61,6 +64,13 @@
 #define UI_log_warning(fmt, ...) do {\
 		fprintf(stdout, "%s"fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
 	} while (0)
+#if defined(DEBUG)
+#define UI_log_debug(fmt, ...) do {\
+		fprintf(stdout, "%s"fmt"\n", "[DEBUG] ", ##__VA_ARGS__);\
+	} while (0)
+#else
+#define UI_log_debug(...)
+#endif // defined(DEBUG)
 
 // Struct: UI_Vector2f
 typedef struct {

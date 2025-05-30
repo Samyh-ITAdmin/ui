@@ -1,6 +1,6 @@
 #define UI_IMPLEMENTATION
 #define UI_REMOVE_PREFIX
-#include <ui.h>
+#include "ui.h"
 #include <raylib.h>
 
 #define WIDTH 800
@@ -62,7 +62,7 @@ int main(void) {
 
 	const char *font_path = "res/fonts/arial.ttf";
 	Font font = LoadFont(font_path);
-	if (!IsFontValid(font)) {
+	if (!IsFontReady(font)) {
 		UI_log_error("font '%s' is not valid!", font_path);
 	}
 
@@ -86,7 +86,7 @@ int main(void) {
 		/*UI_draw_box(UI_get_mpos(NULL), s, UI_COLOR_RED, UI_COLOR_WHITE);*/
 
 		if (UI_button(&ctx, "Click me!", 18, UI_COLOR_WHITE)) {
-			printf("Button Clicked!\n");
+			log_info("Button Clicked!\n");
 		}
 
 		UI_end(&ctx);
