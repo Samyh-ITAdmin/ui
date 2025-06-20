@@ -93,11 +93,12 @@ typedef struct {
 } UI_Color;
 
 // Predefined Colors
-#define UI_COLOR_WHITE UI_CLITERAL(UI_Color) { 255, 255, 255, 255 }
-#define UI_COLOR_BLACK UI_CLITERAL(UI_Color) {   0,   0,   0, 255 }
-#define UI_COLOR_RED   UI_CLITERAL(UI_Color) { 255,   0,   0, 255 }
-#define UI_COLOR_GREEN UI_CLITERAL(UI_Color) {   0, 255,   0, 255 }
-#define UI_COLOR_BLUE  UI_CLITERAL(UI_Color) {   0,   0, 255, 255 }
+#define UI_COLOR_WHITE        UI_CLITERAL(UI_Color) { 255, 255, 255, 255 }
+#define UI_COLOR_BLACK        UI_CLITERAL(UI_Color) {   0,   0,   0, 255 }
+#define UI_COLOR_RED          UI_CLITERAL(UI_Color) { 255,   0,   0, 255 }
+#define UI_COLOR_GREEN        UI_CLITERAL(UI_Color) {   0, 255,   0, 255 }
+#define UI_COLOR_BLUE         UI_CLITERAL(UI_Color) {   0,   0, 255, 255 }
+#define UI_COLOR_TRANSPARENT  UI_CLITERAL(UI_Color) {   0,   0,   0,   0 }
 
 // Typedef: UI_Font
 typedef void* UI_Font;
@@ -357,7 +358,6 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 }
 
 void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
-	int id = ctx->last_used_id++;
 	UI_Layout *top = UI_Context_top_layout(ctx);
 	if (top == NULL) {
 		UI_log_error("This function must be used between 'begin' and 'end'!");
@@ -369,18 +369,12 @@ void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 	size.x += ctx->text_padding.x * 2.f;
 	size.y += ctx->text_padding.y * 2.f;
 
-	const UI_Rect rect = {
-		.x = pos.x,
-		.y = pos.y,
-		.width = size.x,
-		.height = size.y,
-	};
-
 	push_ui_widget(ctx, top, size);
 	
 	UI_Vector2f text_pos = pos;
-	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, UI_COLOR_WHITE);
+	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, color);
 
+	// UI_CALL(UI_draw_box, pos, size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
 }
 
 void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {

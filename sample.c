@@ -85,16 +85,12 @@ int main(void) {
 
 		UI_begin(&ctx, UI_LAYOUT_KIND_VERT);
 
-		UI_draw_box(UI_get_mpos(NULL), v2(100, 100), UI_COLOR_RED, UI_COLOR_WHITE);
+			if (UI_button(&ctx, "Click me!", 18, UI_COLOR_WHITE)) {
+				log_info("Button Clicked!");
+			}
 
-		if (UI_button(&ctx, "Click me!", 18, UI_COLOR_WHITE)) {
-			log_info("Button Clicked!");
-		}
-
-		UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
-		UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
-		UI_text(&ctx, "Ts a short text.", 32, UI_COLOR_GREEN);
-		UI_text(&ctx, "Cowabunga", 8, UI_COLOR_BLUE);
+			UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
+			UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
 
 		UI_end(&ctx);
 
