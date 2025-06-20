@@ -9,7 +9,7 @@
 // Remove Prefix
 #ifdef UI_REMOVE_PREFIX
 #define ASSERT UI_ASSERT
-#define UI_Vector2f Vector2f
+#define Vector2f UI_Vector2f
 #define Layout_kind UI_Layout_kind
 #define LAYOUT_KIND_VERT UI_LAYOUT_KIND_VERT
 #define LAYOUT_KIND_HORZ UI_LAYOUT_KIND_HORZ
@@ -76,6 +76,9 @@
 typedef struct {
 	float x, y;
 } UI_Vector2f;
+
+UI_Vector2f v2(float x, float y);
+UI_Vector2f v2xx(float x);
 
 // Struct: UI_Rect
 typedef struct {
@@ -166,6 +169,16 @@ DECLARE_CALLBACK(draw_text, void, UI_Font*, const char*, UI_Vector2f, int, UI_Co
 #endif
 //////////////////////////////////////////////////
 #ifdef UI_IMPLEMENTATION
+
+// Methods of UI_Vector2f
+
+UI_Vector2f v2(float x, float y) {
+	return UI_CLITERAL(UI_Vector2f) { x, y };
+}
+
+UI_Vector2f v2xx(float x) {
+	return v2(x, x);
+}
 
 // Methods of UI_Rect
 bool UI_Rect_has_point(const UI_Rect *rect, UI_Vector2f point) {
@@ -272,7 +285,7 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 		return false;
 	}
 
-	const UI_Vector2f pos  = UI_Layout_available_pos(top);
+	const UI_Vector2f pos = UI_Layout_available_pos(top);
 	UI_Vector2f size = UI_CALL(UI_measure_text, ctx->font, text, font_size);
 	size.x += ctx->button_padding.x * 2.f;
 	size.y += ctx->button_padding.y * 2.f;
@@ -340,13 +353,32 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 	return click;
 }
 
-void (UI_Context *ctx, const char *text, int font_size, UI_Color color) {
+void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 	int id = ctx->last_used_id++;
 	UI_Layout *top = UI_Context_top_layout(ctx);
 	if (top == NULL) {
 		UI_log_error("This function must be used between 'begin' and 'end'!");
-		return false;
+		return;
 	}
+
+	const UI_Vector2f pos = UI_Layout_available_pos(top);
+	UI_Vector2f size = UI_CALL(UI_measure_text, ctx->font, text, font_size);
+	size.x += ctx->button_padding.x * 2.f;
+	size.y += ctx->button_padding.y * 2.f;
+
+	const UI_Rect rect = {
+		.x = pos.x,
+		.y = pos.y,
+		.width = size.x,
+		.height = size.y,
+	};
+
+	UI_log_debug("Rect: %f, %f,  %f, %f", rect.x, rect.y, rect.width, rect.height);
+
+	push_ui_widget(ctx, top, size);
+
+	UI_Vector2f text_pos = pos;
+	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, UI_COLOR_WHITE);
 
 }
 
