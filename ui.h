@@ -137,6 +137,7 @@ typedef struct {
 	int last_used_id;
 	UI_Font *font;
 	UI_Vector2f button_padding;
+	UI_Vector2f text_padding;
 } UI_Context;
 
 // Methods of UI_Context
@@ -215,17 +216,15 @@ UI_Vector2f  UI_Layout_available_pos(UI_Layout* layout) {
 void UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size) {
 	switch (layout->kind) {
 		case UI_LAYOUT_KIND_VERT: {
-						  layout->size.x += size.x;
-						  layout->size.y = fmaxf(layout->size.y, size.y);
-					  } break;
+	        layout->size.x = fmaxf(layout->size.x, size.x);
+	        layout->size.y += size.y;
+        } break;
 		case UI_LAYOUT_KIND_HORZ: {
-						  layout->size.x = fmaxf(layout->size.x, size.x);
-						  layout->size.y += size.y;
-					  } break;
+            layout->size.x += size.x;
+            layout->size.y = fmaxf(layout->size.y, size.y);
+	    } break;
 		case UI_LAYOUT_KIND_COUNT:
-		default: {
-				 UI_ASSERT(0, "UNREACHABLE!");
-			 } break;
+		default: UI_ASSERT(0, "UNREACHABLE!");
 	}
 }
 
@@ -237,6 +236,10 @@ UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos) {
 	ctx.font = font;
 	ctx.pos = pos;
 	ctx.button_padding = UI_CLITERAL(UI_Vector2f) {
+		.x = 10.f,
+		.y = 10.f,
+	};
+	ctx.text_padding = UI_CLITERAL(UI_Vector2f) {
 		.x = 10.f,
 		.y = 10.f,
 	};
@@ -363,8 +366,8 @@ void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 
 	const UI_Vector2f pos = UI_Layout_available_pos(top);
 	UI_Vector2f size = UI_CALL(UI_measure_text, ctx->font, text, font_size);
-	size.x += ctx->button_padding.x * 2.f;
-	size.y += ctx->button_padding.y * 2.f;
+	size.x += ctx->text_padding.x * 2.f;
+	size.y += ctx->text_padding.y * 2.f;
 
 	const UI_Rect rect = {
 		.x = pos.x,
@@ -373,10 +376,8 @@ void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 		.height = size.y,
 	};
 
-	UI_log_debug("Rect: %f, %f,  %f, %f", rect.x, rect.y, rect.width, rect.height);
-
 	push_ui_widget(ctx, top, size);
-
+	
 	UI_Vector2f text_pos = pos;
 	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, UI_COLOR_WHITE);
 
