@@ -77,8 +77,10 @@ typedef struct {
 	float x, y;
 } UI_Vector2f;
 
-UI_Vector2f v2(float x, float y);
-UI_Vector2f v2xx(float x);
+// Methods of UI_Vector2f
+UI_Vector2f UI_v2(float x, float y);
+UI_Vector2f UI_v2xx(float x);
+UI_Vector2f UI_v2_sub(UI_Vector2f a, Vector2f b);
 
 // Struct: UI_Rect
 typedef struct {
@@ -159,10 +161,12 @@ void        UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
 
 typedef struct {
 	UI_Vector2f pos;
+	UI_Vector2f offset; // offset from mpos when moving via titlebar
 	const char *title;
 	int title_font_size;
 	UI_Vector2f title_bar_size;
 	float title_bar_vert_padding;
+	bool moving;
 	
 	float window_width, window_height;
 
@@ -211,12 +215,20 @@ DECLARE_CALLBACK(draw_text, void, UI_Font*, const char*, UI_Vector2f, int, UI_Co
 
 // Methods of UI_Vector2f
 
-UI_Vector2f v2(float x, float y) {
+UI_Vector2f UI_v2(float x, float y) {
 	return UI_CLITERAL(UI_Vector2f) { x, y };
 }
 
-UI_Vector2f v2xx(float x) {
-	return v2(x, x);
+UI_Vector2f UI_v2xx(float x) {
+	return UI_v2(x, x);
+}
+
+UI_Vector2f UI_v2_sub(UI_Vector2f a, Vector2f b) {
+	UI_Vector2f res = {
+		.x = a.x - b.x,
+		.y = a.y - b.y,
+	};
+	return res;
 }
 
 // Methods of UI_Rect
@@ -352,7 +364,36 @@ void UI_end(UI_Context* ctx) {
 	UI_Context_pop_layout(ctx);
 
 	// Draw title bar
-	UI_CALL(UI_draw_rect, ctx->pos, ctx->title_bar_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
+	UI_Color title_bar_color = UI_COLOR_WHITE;
+	title_bar_color.a = 120;
+	UI_Rect title_bar_rect = UI_CLITERAL(UI_Rect) {
+		.x = ctx->pos.x,
+		.y = ctx->pos.y,
+		.width = ctx->title_bar_size.x,
+		.height = ctx->title_bar_size.y,
+	};
+	UI_Vector2f mpos = UI_CALL(UI_get_mpos, NULL);
+	if (UI_Rect_has_point(&title_bar_rect, mpos)) {
+		title_bar_color.a = 200;
+
+		bool m = UI_CALL(UI_mouse_button_pressed, UI_MOUSE_BUTTON_LEFT);
+		if (m) {
+			ctx->offset = UI_v2_sub(mpos, ctx->pos);
+			ctx->moving = true;
+		}
+	}
+
+	if (ctx->moving) {
+		ctx->pos = UI_v2_sub(mpos, ctx->offset);
+
+	}
+
+	bool mr = UI_CALL(UI_mouse_button_released, UI_MOUSE_BUTTON_LEFT);
+	if (mr) {
+		ctx->moving = false;
+	}
+
+	UI_CALL(UI_draw_rect, ctx->pos, ctx->title_bar_size, title_bar_color, UI_COLOR_WHITE);
 	UI_Vector2f title_pos = {
 		.x = ctx->pos.x + ctx->title_font_size * 0.15f,
 		.y = ctx->pos.y + ctx->title_font_size * 0.15f,
@@ -376,8 +417,9 @@ void UI_end(UI_Context* ctx) {
 			default: ASSERT(false, "UNREACHABLE!");
 		}
 	}
-}
 
+	// Move 
+}
 
 bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color) {
 	int id = ctx->last_used_id++;
