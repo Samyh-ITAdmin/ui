@@ -92,6 +92,37 @@ typedef struct {
 	uint8_t r, g, b, a;
 } UI_Color;
 
+// Typedef: UI_Font
+typedef void* UI_Font;
+
+// Post drawing
+typedef enum {
+	UI_DRAW_ELEMENT_RECT,
+	UI_DRAW_ELEMENT_CIRCLE,
+	UI_DRAW_ELEMENT_TEXT,
+	UI_DRAW_ELEMENT_COUNT,
+} UI_Draw_element_kind;
+
+typedef struct {
+	UI_Draw_element_kind kind;
+	UI_Color fill_color;
+	UI_Color out_color;
+	const char *text;
+	UI_Font font;
+	int font_size;
+	UI_Vector2f pos;
+	UI_Vector2f size;
+} UI_Draw_element;
+
+#define UI_DRAW_ELEMENT_STACK_COUNT (1024)
+typedef struct {
+	UI_Draw_element items[UI_DRAW_ELEMENT_STACK_COUNT];
+	size_t count;
+} UI_Draw_element_stack;
+
+void UI_draw_element_push(UI_Draw_element_stack *stack, UI_Draw_element elm);
+UI_Draw_element UI_draw_element_pop(UI_Draw_element_stack *stack);
+
 // Predefined Colors
 #define UI_COLOR_WHITE        UI_CLITERAL(UI_Color) { 255, 255, 255, 255 }
 #define UI_COLOR_BLACK        UI_CLITERAL(UI_Color) {   0,   0,   0, 255 }
@@ -99,9 +130,6 @@ typedef struct {
 #define UI_COLOR_GREEN        UI_CLITERAL(UI_Color) {   0, 255,   0, 255 }
 #define UI_COLOR_BLUE         UI_CLITERAL(UI_Color) {   0,   0, 255, 255 }
 #define UI_COLOR_TRANSPARENT  UI_CLITERAL(UI_Color) {   0,   0,   0,   0 }
-
-// Typedef: UI_Font
-typedef void* UI_Font;
 
 // Enum: UI_Mouse_button
 typedef enum {
@@ -139,6 +167,8 @@ typedef struct {
 	UI_Font *font;
 	UI_Vector2f button_padding;
 	UI_Vector2f text_padding;
+	
+	UI_Draw_element_stack draw_stack;
 } UI_Context;
 
 // Methods of UI_Context
@@ -165,7 +195,7 @@ DECLARE_CALLBACK(mouse_button_released, bool, UI_Mouse_button);
 DECLARE_CALLBACK(mouse_button_pressed, bool, UI_Mouse_button);
 DECLARE_CALLBACK(mouse_button_down, bool, UI_Mouse_button);
 
-DECLARE_CALLBACK(draw_box, void, UI_Vector2f, UI_Vector2f, UI_Color, UI_Color);
+DECLARE_CALLBACK(draw_rect, void, UI_Vector2f, UI_Vector2f, UI_Color, UI_Color);
 DECLARE_CALLBACK(draw_text, void, UI_Font*, const char*, UI_Vector2f, int, UI_Color);
 
 #endif
@@ -187,6 +217,20 @@ bool UI_Rect_has_point(const UI_Rect *rect, UI_Vector2f point) {
 	UI_Rect r = *rect;
 	return (point.x >= r.x && point.x <= r.x + r.width &&
 	    point.y >= r.y && point.y <= r.y + r.height);
+}
+
+// Post drawing
+void UI_draw_element_push(UI_Draw_element_stack *stack, UI_Draw_element elm) {
+	if (stack->count > UI_DRAW_ELEMENT_STACK_COUNT) {
+		UI_log_error("Used up all the items on stack!");
+		exit(1);
+	}
+
+	stack->items[stack->count++] = elm;
+}
+
+UI_Draw_element UI_draw_element_pop(UI_Draw_element_stack *stack) {
+	return stack->items[--stack->count];
 }
 
 // Methods of UI_Layout
@@ -261,6 +305,25 @@ void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
 void UI_end(UI_Context* ctx) {
 	ctx->last_used_id = 0;
 	UI_Context_pop_layout(ctx);
+
+
+	// Draw elements
+	while (ctx->draw_stack.count > 0) {
+		UI_Draw_element elm = UI_draw_element_pop(&ctx->draw_stack);
+		switch (elm.kind) {
+			case UI_DRAW_ELEMENT_RECT: {
+				UI_CALL(UI_draw_rect, elm.pos, elm.size, elm.fill_color, elm.out_color);
+			} break;
+			case UI_DRAW_ELEMENT_CIRCLE: {
+				ASSERT(false, "UNIMPLEMENTED!");
+			} break;
+			case UI_DRAW_ELEMENT_TEXT: {
+				UI_CALL(UI_draw_text, elm.font, elm.text, elm.pos, elm.font_size, elm.fill_color);
+			} break;
+			case UI_DRAW_ELEMENT_COUNT:
+			default: ASSERT(false, "UNREACHABLE!");
+		}
+	}
 }
 
 // NOTE: local helper
@@ -335,10 +398,15 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 
 	push_ui_widget(ctx, top, size);
 
-	// TODO: Move drawing to post
 	color.a = (uint8_t)(alpha * 255.f);
-	UI_CALL(UI_draw_box, pos, size, color, UI_COLOR_WHITE);
-
+	UI_draw_element_push(&ctx->draw_stack, (UI_Draw_element) {
+				.kind = UI_DRAW_ELEMENT_RECT,
+				.fill_color = color,
+				.out_color = UI_COLOR_WHITE,
+				.pos = pos,
+				.size = size,
+			});
+			
 	UI_Vector2f text_pos = UI_CLITERAL(UI_Vector2f) {
 		.x = pos.x + ctx->button_padding.x,
 		.y = pos.y + ctx->button_padding.y,
@@ -349,7 +417,15 @@ bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color)
 		text_pos.y += ctx->button_padding.y * 0.25f;
 	}
 
-	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, UI_COLOR_WHITE);
+	UI_draw_element_push(&ctx->draw_stack, (UI_Draw_element) {
+				.kind = UI_DRAW_ELEMENT_TEXT,
+				.fill_color = UI_COLOR_WHITE,
+				.text = text,
+				.pos = text_pos,
+				.font = ctx->font,
+				.font_size = font_size,
+			});
+
 
 	/*if (!ctx->show) click = false;*/
 	/*if (click) ignore_mouse_input(true);*/
@@ -374,7 +450,7 @@ void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 	UI_Vector2f text_pos = pos;
 	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, color);
 
-	// UI_CALL(UI_draw_box, pos, size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
+	// UI_CALL(UI_draw_rect, pos, size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
 }
 
 void UI_Context_push_layout(UI_Context* ctx, UI_Layout layout) {
@@ -403,7 +479,7 @@ DEFINE_CALLBACK(get_mpos);
 DEFINE_CALLBACK(mouse_button_released);
 DEFINE_CALLBACK(mouse_button_pressed);
 DEFINE_CALLBACK(mouse_button_down);
-DEFINE_CALLBACK(draw_box);
+DEFINE_CALLBACK(draw_rect);
 DEFINE_CALLBACK(draw_text);
 
 #endif

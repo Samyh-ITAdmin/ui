@@ -42,7 +42,7 @@ static Color UI_Color_to_Raylib_Color(const UI_Color color) {
 	};
 }
 
-static void draw_box(UI_Vector2f pos, UI_Vector2f size, UI_Color fill_color, UI_Color out_color) {
+static void draw_rect(UI_Vector2f pos, UI_Vector2f size, UI_Color fill_color, UI_Color out_color) {
 	DrawRectangleV(CLITERAL(Vector2) { pos.x, pos.y }, CLITERAL(Vector2) { size.x, size.y }, UI_Color_to_Raylib_Color(fill_color));
 	DrawRectangleLines((int)pos.x, (int)pos.y, (int)size.x, (int)size.y, UI_Color_to_Raylib_Color(out_color));
 }
@@ -58,6 +58,6 @@ void init_raylib_ui_bindings(void) {
 	UI_set_mouse_button_released(mouse_button_released);
 	UI_set_mouse_button_pressed(mouse_button_pressed);
 	UI_set_mouse_button_down(mouse_button_down);
-	UI_set_draw_box(draw_box);
+	UI_set_draw_rect(draw_rect);
 	UI_set_draw_text(draw_text);
 }
