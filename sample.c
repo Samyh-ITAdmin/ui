@@ -20,7 +20,7 @@ int main(void) {
 		return 1;
 	}
 
-	UI_Context ctx = UI_Context_make((UI_Font *)&font, UI_CLITERAL(UI_Vector2f) { 100.f, 100.f });
+	UI_Context ctx = UI_Context_make((UI_Font *)&font, UI_CLITERAL(UI_Vector2f) { 100.f, 100.f }, "Sample", WIDTH, HEIGHT);
 
 	init_raylib_ui_bindings();
 

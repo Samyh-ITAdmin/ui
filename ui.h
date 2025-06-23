@@ -159,6 +159,13 @@ void        UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
 
 typedef struct {
 	UI_Vector2f pos;
+	const char *title;
+	int title_font_size;
+	UI_Vector2f title_bar_size;
+	float title_bar_vert_padding;
+	
+	float window_width, window_height;
+
 #define UI_LAYOUTS_CAP 1024
 	UI_Layout layouts[LAYOUTS_CAP];
 	size_t    layouts_count;
@@ -172,7 +179,7 @@ typedef struct {
 } UI_Context;
 
 // Methods of UI_Context
-UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos);
+UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos, const char *title, float window_width, float window_height);
 void       UI_begin(UI_Context* ctx, UI_Layout_kind kind);
 void       UI_end(UI_Context* ctx);
 bool       UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color);
@@ -274,7 +281,7 @@ void UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size) {
 }
 
 // Methods of UI_Context
-UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos) {
+UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos, const char *title, float window_width, float window_height) {
 	UI_Context ctx = {0};
 	ctx.active_id = -1;
 	ctx.layouts_count = 0;
@@ -289,7 +296,38 @@ UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos) {
 		.y = 10.f,
 	};
 
+	ctx.window_width = window_width;
+	ctx.window_height = window_height;
+
+	ctx.title = title;
+	ctx.title_font_size = window_width * 0.035f;
+	ctx.title_bar_size = UI_CLITERAL(UI_Vector2f) {
+		.x = 100.f,
+		.y = ctx.title_font_size * 1.30f,
+	};
+	UI_log_debug("TITLE FONT SIZE: %d", ctx.title_font_size);
+	UI_log_debug("TITLE BAR HEIGHT: %f", ctx.title_bar_size.y);
+	ctx.title_bar_vert_padding = window_height * 0.015f;
+
 	return ctx;
+}
+// NOTE: local helper
+static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size) {
+    (void)ctx;
+	switch (layout->kind) {
+		case UI_LAYOUT_KIND_HORZ: {
+			// ctx->ui_rect.width += size.x;
+			// ctx->ui_rect.height = fmaxf(ctx->ui_rect.height, size.y);
+		} break;
+		case UI_LAYOUT_KIND_VERT: {
+			// ctx->ui_rect.width = fmaxf(ctx->ui_rect.width, size.x);
+			// ctx->ui_rect.height += size.y;
+		} break;
+		case UI_LAYOUT_KIND_COUNT:
+		default: UI_ASSERT(0, "Unreachable");
+	}
+	ctx->title_bar_size.x = fmaxf(ctx->title_bar_size.x, size.x);
+    UI_Layout_push_widget(layout, size);
 }
 
 void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
@@ -300,12 +338,26 @@ void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
 	};
 	layout.kind = kind;
 	UI_Context_push_layout(ctx, layout);
+
+	UI_Layout *top = UI_Context_top_layout(ctx);
+	UI_Vector2f s = {
+		.x = ctx->title_bar_size.x,
+		.y = ctx->title_bar_size.y + ctx->title_bar_vert_padding,
+	};
+	push_ui_widget(ctx, top, s);
 }
 
 void UI_end(UI_Context* ctx) {
 	ctx->last_used_id = 0;
 	UI_Context_pop_layout(ctx);
 
+	// Draw title bar
+	UI_CALL(UI_draw_rect, ctx->pos, ctx->title_bar_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
+	UI_Vector2f title_pos = {
+		.x = ctx->pos.x + ctx->title_font_size * 0.15f,
+		.y = ctx->pos.y + ctx->title_font_size * 0.15f,
+	};
+	UI_CALL(UI_draw_text, ctx->font, ctx->title, title_pos, ctx->title_font_size, UI_COLOR_WHITE);
 
 	// Draw elements
 	while (ctx->draw_stack.count > 0) {
@@ -326,23 +378,6 @@ void UI_end(UI_Context* ctx) {
 	}
 }
 
-// NOTE: local helper
-static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size) {
-    (void)ctx;
-	switch (layout->kind) {
-		case UI_LAYOUT_KIND_HORZ: {
-			// ctx->ui_rect.width += size.x;
-			// ctx->ui_rect.height = fmaxf(ctx->ui_rect.height, size.y);
-		} break;
-		case UI_LAYOUT_KIND_VERT: {
-			// ctx->ui_rect.width = fmaxf(ctx->ui_rect.width, size.x);
-			// ctx->ui_rect.height += size.y;
-		} break;
-		case UI_LAYOUT_KIND_COUNT:
-		default: UI_ASSERT(0, "Unreachable");
-	}
-    UI_Layout_push_widget(layout, size);
-}
 
 bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color) {
 	int id = ctx->last_used_id++;
