@@ -167,6 +167,7 @@ typedef struct {
 	UI_Vector2f title_bar_size;
 	float title_bar_vert_padding;
 	bool moving;
+	UI_Vector2f ui_window_size;
 	
 	float window_width, window_height;
 
@@ -328,21 +329,26 @@ static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size)
     (void)ctx;
 	switch (layout->kind) {
 		case UI_LAYOUT_KIND_HORZ: {
-			// ctx->ui_rect.width += size.x;
-			// ctx->ui_rect.height = fmaxf(ctx->ui_rect.height, size.y);
+			ctx->ui_window_size.x += size.x;
+			ctx->ui_window_size.y = fmaxf(ctx->ui_window_size.y, size.y);
 		} break;
 		case UI_LAYOUT_KIND_VERT: {
-			// ctx->ui_rect.width = fmaxf(ctx->ui_rect.width, size.x);
-			// ctx->ui_rect.height += size.y;
+			ctx->ui_window_size.x = fmaxf(ctx->ui_window_size.x, size.x);
+			ctx->ui_window_size.y += size.y;
 		} break;
 		case UI_LAYOUT_KIND_COUNT:
 		default: UI_ASSERT(0, "Unreachable");
 	}
 	ctx->title_bar_size.x = fmaxf(ctx->title_bar_size.x, size.x);
+
+
     UI_Layout_push_widget(layout, size);
 }
 
 void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
+	ctx->ui_window_size.x = 0;
+	ctx->ui_window_size.y = 0;
+
 	UI_Layout layout = {0};
 	layout.pos = (UI_Vector2f) {
 		.x = ctx->pos.x,
@@ -363,7 +369,7 @@ void UI_end(UI_Context* ctx) {
 	ctx->last_used_id = 0;
 	UI_Context_pop_layout(ctx);
 
-	// Draw title bar
+	// Move ui window
 	UI_Color title_bar_color = UI_COLOR_WHITE;
 	title_bar_color.a = 120;
 	UI_Rect title_bar_rect = UI_CLITERAL(UI_Rect) {
@@ -393,12 +399,16 @@ void UI_end(UI_Context* ctx) {
 		ctx->moving = false;
 	}
 
+	// Draw title bar
 	UI_CALL(UI_draw_rect, ctx->pos, ctx->title_bar_size, title_bar_color, UI_COLOR_WHITE);
 	UI_Vector2f title_pos = {
 		.x = ctx->pos.x + ctx->title_font_size * 0.15f,
 		.y = ctx->pos.y + ctx->title_font_size * 0.15f,
 	};
 	UI_CALL(UI_draw_text, ctx->font, ctx->title, title_pos, ctx->title_font_size, UI_COLOR_WHITE);
+
+	// Draw ui window
+	UI_CALL(UI_draw_rect, ctx->pos, ctx->ui_window_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
 
 	// Draw elements
 	while (ctx->draw_stack.count > 0) {
