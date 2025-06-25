@@ -10,10 +10,6 @@
 #ifdef UI_REMOVE_PREFIX
 #define ASSERT UI_ASSERT
 #define Vector2f UI_Vector2f
-#define Layout_kind UI_Layout_kind
-#define LAYOUT_KIND_VERT UI_LAYOUT_KIND_VERT
-#define LAYOUT_KIND_HORZ UI_LAYOUT_KIND_HORZ
-#define LAYOUT_KIND_COUNT UI_LAYOUT_KIND_COUNT
 #define Layout UI_Layout
 #define Layout_make UI_Layout_make
 #define Layout_available_pos UI_Layout_available_pos
@@ -141,21 +137,13 @@ typedef enum {
 	UI_MOUSE_BUTTON_COUNT,
 } UI_Mouse_button;
 
-// Enum: UI_Layout_kind
-typedef enum {
-	UI_LAYOUT_KIND_VERT,
-	UI_LAYOUT_KIND_HORZ,
-	UI_LAYOUT_KIND_COUNT,
-} UI_Layout_kind;
-
 // Struct: UI_Layout
 typedef struct {
-	UI_Layout_kind kind;
 	UI_Vector2f pos, size;
 } UI_Layout;
 
 // Methods of UI_Layout
-UI_Layout   UI_Layout_make(UI_Layout_kind kind);
+UI_Layout   UI_Layout_make(void);
 UI_Vector2f UI_Layout_available_pos(UI_Layout* layout);
 void        UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size);
 
@@ -185,7 +173,7 @@ typedef struct {
 
 // Methods of UI_Context
 UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos, const char *title, float window_width, float window_height);
-void       UI_begin(UI_Context* ctx, UI_Layout_kind kind);
+void       UI_begin(UI_Context* ctx);
 void       UI_end(UI_Context* ctx);
 bool       UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color);
 void       UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color);
@@ -254,43 +242,18 @@ UI_Draw_element UI_draw_element_pop(UI_Draw_element_stack *stack) {
 }
 
 // Methods of UI_Layout
-UI_Layout UI_Layout_make(UI_Layout_kind kind) {
-	UI_Layout l = {
-		.kind = kind,
-	};
+UI_Layout UI_Layout_make(void) {
+	UI_Layout l = {0};
 	return l;
 }
 
 UI_Vector2f  UI_Layout_available_pos(UI_Layout* layout) {
-	switch (layout->kind) {
-		case UI_LAYOUT_KIND_VERT: {
-						  return (UI_Vector2f) { layout->pos.x, layout->pos.y + layout->size.y };
-					  } break;
-		case UI_LAYOUT_KIND_HORZ: {
-						  return (UI_Vector2f) { layout->pos.x + layout->size.x, layout->pos.y };
-					  } break;
-		case UI_LAYOUT_KIND_COUNT:
-		default: {
-				 UI_ASSERT(0, "UNREACHABLE!");
-			 } break;
-
-	}
-	return (UI_Vector2f) {0.f, 0.f};
+    return (UI_Vector2f) { layout->pos.x, layout->pos.y + layout->size.y };
 }
 
 void UI_Layout_push_widget(UI_Layout* layout, UI_Vector2f size) {
-	switch (layout->kind) {
-		case UI_LAYOUT_KIND_VERT: {
-	        layout->size.x = fmaxf(layout->size.x, size.x);
-	        layout->size.y += size.y;
-        } break;
-		case UI_LAYOUT_KIND_HORZ: {
-            layout->size.x += size.x;
-            layout->size.y = fmaxf(layout->size.y, size.y);
-	    } break;
-		case UI_LAYOUT_KIND_COUNT:
-		default: UI_ASSERT(0, "UNREACHABLE!");
-	}
+	layout->size.x = fmaxf(layout->size.x, size.x);
+	layout->size.y += size.y;
 }
 
 // Methods of UI_Context
@@ -326,26 +289,14 @@ UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos, const char *title, fl
 }
 // NOTE: local helper
 static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size) {
-    (void)ctx;
-	switch (layout->kind) {
-		case UI_LAYOUT_KIND_HORZ: {
-			ctx->ui_window_size.x += size.x;
-			ctx->ui_window_size.y = fmaxf(ctx->ui_window_size.y, size.y);
-		} break;
-		case UI_LAYOUT_KIND_VERT: {
-			ctx->ui_window_size.x = fmaxf(ctx->ui_window_size.x, size.x);
-			ctx->ui_window_size.y += size.y;
-		} break;
-		case UI_LAYOUT_KIND_COUNT:
-		default: UI_ASSERT(0, "Unreachable");
-	}
+	ctx->ui_window_size.x = fmaxf(ctx->ui_window_size.x, size.x);
+	ctx->ui_window_size.y += size.y;
 	ctx->title_bar_size.x = fmaxf(ctx->title_bar_size.x, size.x);
-
 
     UI_Layout_push_widget(layout, size);
 }
 
-void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
+void UI_begin(UI_Context* ctx) {
 	ctx->ui_window_size.x = 0;
 	ctx->ui_window_size.y = 0;
 
@@ -354,7 +305,6 @@ void UI_begin(UI_Context* ctx, UI_Layout_kind kind) {
 		.x = ctx->pos.x,
 		.y = ctx->pos.y
 	};
-	layout.kind = kind;
 	UI_Context_push_layout(ctx, layout);
 
 	UI_Layout *top = UI_Context_top_layout(ctx);

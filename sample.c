@@ -29,7 +29,7 @@ int main(void) {
 
 		ClearBackground(BLACK);
 
-		UI_begin(&ctx, UI_LAYOUT_KIND_VERT);
+		UI_begin(&ctx);
 
 			if (UI_button(&ctx, "Click me!", 18, UI_COLOR_WHITE)) {
 				log_info("Button Clicked!");
@@ -37,6 +37,11 @@ int main(void) {
 
 			UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
 			UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
+
+			// UI_begin(&ctx);
+			// 	UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
+			// 	UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
+			// UI_end(&ctx);
 
 		UI_end(&ctx);
 
