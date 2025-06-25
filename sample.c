@@ -19,10 +19,9 @@ int main(void) {
 		CloseWindow();
 		return 1;
 	}
+	init_raylib_ui_bindings();
 
 	UI_Context ctx = UI_Context_make((UI_Font *)&font, UI_CLITERAL(UI_Vector2f) { 100.f, 100.f }, "Sample", WIDTH, HEIGHT);
-
-	init_raylib_ui_bindings();
 
 	while (!WindowShouldClose()) {
 		BeginDrawing();
@@ -37,11 +36,6 @@ int main(void) {
 
 			UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
 			UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
-
-			// UI_begin(&ctx);
-			// 	UI_text(&ctx, "This is a long text.", 24, UI_COLOR_RED);
-			// 	UI_text(&ctx, "This too is a long text.", 18, UI_COLOR_WHITE);
-			// UI_end(&ctx);
 
 		UI_end(&ctx);
 

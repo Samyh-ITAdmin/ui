@@ -77,6 +77,7 @@ typedef struct {
 UI_Vector2f UI_v2(float x, float y);
 UI_Vector2f UI_v2xx(float x);
 UI_Vector2f UI_v2_sub(UI_Vector2f a, Vector2f b);
+UI_Vector2f UI_v2_add(UI_Vector2f a, Vector2f b);
 
 // Struct: UI_Rect
 typedef struct {
@@ -156,6 +157,8 @@ typedef struct {
 	float title_bar_vert_padding;
 	bool moving;
 	UI_Vector2f ui_window_size;
+	UI_Vector2f minimize_button_size;
+	bool minimized;
 	
 	float window_width, window_height;
 
@@ -220,6 +223,14 @@ UI_Vector2f UI_v2_sub(UI_Vector2f a, Vector2f b) {
 	return res;
 }
 
+UI_Vector2f UI_v2_add(UI_Vector2f a, Vector2f b) {
+	UI_Vector2f res = {
+		.x = a.x + b.x,
+		.y = a.y + b.y,
+	};
+	return res;
+}
+
 // Methods of UI_Rect
 bool UI_Rect_has_point(const UI_Rect *rect, UI_Vector2f point) {
 	UI_Rect r = *rect;
@@ -277,12 +288,15 @@ UI_Context UI_Context_make(UI_Font* font, UI_Vector2f pos, const char *title, fl
 
 	ctx.title = title;
 	ctx.title_font_size = window_width * 0.035f;
+	UI_Vector2f size = UI_CALL(UI_measure_text, ctx.font, title, ctx.title_font_size);
+
 	ctx.title_bar_size = UI_CLITERAL(UI_Vector2f) {
-		.x = 100.f,
-		.y = ctx.title_font_size * 1.30f,
+		.y = fmaxf(size.y, ctx.title_font_size * 1.30f),
 	};
-	UI_log_debug("TITLE FONT SIZE: %d", ctx.title_font_size);
-	UI_log_debug("TITLE BAR HEIGHT: %f", ctx.title_bar_size.y);
+	ctx.minimize_button_size.y = ctx.title_bar_size.y;
+	ctx.minimize_button_size.x = ctx.title_bar_size.y;
+	ctx.title_bar_size.x = size.x * 1.25f + ctx.minimize_button_size.x;
+
 	ctx.title_bar_vert_padding = window_height * 0.015f;
 
 	return ctx;
@@ -297,6 +311,7 @@ static void push_ui_widget(UI_Context* ctx, UI_Layout* layout, UI_Vector2f size)
 }
 
 void UI_begin(UI_Context* ctx) {
+	ctx->draw_stack.count = 0;
 	ctx->ui_window_size.x = 0;
 	ctx->ui_window_size.y = 0;
 
@@ -357,28 +372,46 @@ void UI_end(UI_Context* ctx) {
 	};
 	UI_CALL(UI_draw_text, ctx->font, ctx->title, title_pos, ctx->title_font_size, UI_COLOR_WHITE);
 
-	// Draw ui window
-	UI_CALL(UI_draw_rect, ctx->pos, ctx->ui_window_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
-
-	// Draw elements
-	while (ctx->draw_stack.count > 0) {
-		UI_Draw_element elm = UI_draw_element_pop(&ctx->draw_stack);
-		switch (elm.kind) {
-			case UI_DRAW_ELEMENT_RECT: {
-				UI_CALL(UI_draw_rect, elm.pos, elm.size, elm.fill_color, elm.out_color);
-			} break;
-			case UI_DRAW_ELEMENT_CIRCLE: {
-				ASSERT(false, "UNIMPLEMENTED!");
-			} break;
-			case UI_DRAW_ELEMENT_TEXT: {
-				UI_CALL(UI_draw_text, elm.font, elm.text, elm.pos, elm.font_size, elm.fill_color);
-			} break;
-			case UI_DRAW_ELEMENT_COUNT:
-			default: ASSERT(false, "UNREACHABLE!");
+	// Minimize button
+	UI_Vector2f minimize_btn_pos = UI_CLITERAL(UI_Vector2f) {
+			.x = ctx->pos.x + ctx->title_bar_size.x - ctx->minimize_button_size.x,
+			.y = ctx->pos.y,
+	};
+	UI_CALL(UI_draw_rect, minimize_btn_pos, ctx->minimize_button_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
+	UI_Rect minimize_btn_rect = UI_CLITERAL(UI_Rect) {
+		.x = minimize_btn_pos.x,
+		.y = minimize_btn_pos.y,
+		.width  = ctx->minimize_button_size.x,
+		.height = ctx->minimize_button_size.y,
+	};
+	{
+		bool m = UI_CALL(UI_mouse_button_pressed, UI_MOUSE_BUTTON_LEFT);
+		if (UI_Rect_has_point(&minimize_btn_rect, mpos) && m) {
+			ctx->minimized = !ctx->minimized;
 		}
 	}
+	if (!ctx->minimized) {
+		// Draw ui window
+		UI_CALL(UI_draw_rect, ctx->pos, ctx->ui_window_size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
 
-	// Move 
+		// Draw elements
+		while (ctx->draw_stack.count > 0) {
+			UI_Draw_element elm = UI_draw_element_pop(&ctx->draw_stack);
+			switch (elm.kind) {
+				case UI_DRAW_ELEMENT_RECT: {
+					UI_CALL(UI_draw_rect, elm.pos, elm.size, elm.fill_color, elm.out_color);
+				} break;
+				case UI_DRAW_ELEMENT_CIRCLE: {
+					ASSERT(false, "UNIMPLEMENTED!");
+				} break;
+				case UI_DRAW_ELEMENT_TEXT: {
+					UI_CALL(UI_draw_text, elm.font, elm.text, elm.pos, elm.font_size, elm.fill_color);
+				} break;
+				case UI_DRAW_ELEMENT_COUNT:
+				default: ASSERT(false, "UNREACHABLE!");
+			}
+		}
+	}
 }
 
 bool UI_button(UI_Context* ctx, const char *text, int font_size, UI_Color color) {
@@ -485,7 +518,14 @@ void UI_text(UI_Context *ctx, const char *text, int font_size, UI_Color color) {
 	push_ui_widget(ctx, top, size);
 	
 	UI_Vector2f text_pos = pos;
-	UI_CALL(UI_draw_text, ctx->font, text, text_pos, font_size, color);
+	UI_draw_element_push(&ctx->draw_stack, (UI_Draw_element) {
+				.kind = UI_DRAW_ELEMENT_TEXT,
+				.fill_color = color,
+				.text = text,
+				.pos = text_pos,
+				.font = ctx->font,
+				.font_size = font_size,
+			});
 
 	// UI_CALL(UI_draw_rect, pos, size, UI_COLOR_TRANSPARENT, UI_COLOR_WHITE);
 }
